@@ -207,7 +207,11 @@ limitations under the License.
 // those.
 package logr
 
-import "context"
+import (
+	"context"
+
+	"go.opentelemetry.io/otel/trace"
+)
 
 // New returns a new Logger instance.  This is primarily used by libraries
 // implementing LogSink, rather than end users.  Passing a nil sink will create
@@ -266,6 +270,11 @@ func (l Logger) Enabled() bool {
 	return l.sink != nil && l.sink.Enabled(l.level)
 }
 
+func (l Logger) WithContext(ctx context.Context) Logger {
+	l.ctx = &ctx
+	return l
+}
+
 // Info logs a non-error message with the given key/value pairs as context.
 //
 // The msg argument should be used to add some constant description to the log
@@ -276,6 +285,13 @@ func (l Logger) Info(msg string, keysAndValues ...any) {
 	if l.sink == nil {
 		return
 	}
+	if l.ctx != nil {
+		span := trace.SpanFromContext(*l.ctx)
+		if span.IsRecording() {
+			span.AddEvent(msg)
+		}
+	}
+
 	if l.sink.Enabled(l.level) { // see comment in Enabled
 		if withHelper, ok := l.sink.(CallStackHelperLogSink); ok {
 			withHelper.GetCallStackHelper()()
@@ -297,6 +313,13 @@ func (l Logger) Info(msg string, keysAndValues ...any) {
 func (l Logger) Error(err error, msg string, keysAndValues ...any) {
 	if l.sink == nil {
 		return
+	}
+	if l.ctx != nil {
+		span := trace.SpanFromContext(*l.ctx)
+		if span.IsRecording() {
+			span.AddEvent(msg)
+			span.RecordError(err)
+		}
 	}
 	if withHelper, ok := l.sink.(CallStackHelperLogSink); ok {
 		withHelper.GetCallStackHelper()()
