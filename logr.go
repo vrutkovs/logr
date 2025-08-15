@@ -207,6 +207,8 @@ limitations under the License.
 // those.
 package logr
 
+import "context"
+
 // New returns a new Logger instance.  This is primarily used by libraries
 // implementing LogSink, rather than end users.  Passing a nil sink will create
 // a Logger which discards all log lines.
@@ -249,6 +251,7 @@ func (l Logger) WithSink(sink LogSink) Logger {
 type Logger struct {
 	sink  LogSink
 	level int
+	ctx   *context.Context
 }
 
 // Enabled tests whether this Logger is enabled.  For example, commandline
